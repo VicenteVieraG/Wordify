@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $false)]
-    [string]$ManifestPath = ".\manifest.xml",
+    [string]$ManifestPath = "..\manifest.xml",
 
     [Parameter(Mandatory = $false)]
     [switch]$Uninstall
