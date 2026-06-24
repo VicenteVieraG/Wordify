@@ -14,7 +14,7 @@ Public Function Wordify_GetSelectionOrAdjacentToken(ByRef tokenRange As Range, B
     On Error GoTo EH
 
     If Selection Is Nothing Then
-        errMsg = "No hay una selecciÃ³n activa."
+        errMsg = "No hay una selección activa."
         Exit Function
     End If
 
@@ -23,13 +23,13 @@ Public Function Wordify_GetSelectionOrAdjacentToken(ByRef tokenRange As Range, B
         tokenText = tokenRange.Text
 
         If LenB(Trim$(tokenText)) = 0 Then
-            errMsg = "La selecciÃ³n estÃ¡ vacÃ­a o contiene solo espacios."
+            errMsg = "La selección está vacía o contiene solo espacios."
             Exit Function
         End If
 
         If mode = WordifyInputSpelling Then
             If InStr(1, tokenText, " ", vbBinaryCompare) > 0 Or InStr(1, tokenText, vbTab, vbBinaryCompare) > 0 Or InStr(1, tokenText, vbCr, vbBinaryCompare) > 0 Then
-                errMsg = "Para deletrear, la selecciÃ³n no debe contener espacios ni saltos de lÃ­nea."
+                errMsg = "Para deletrear, la selección no debe contener espacios ni saltos de línea."
                 Exit Function
             End If
         End If
@@ -81,7 +81,7 @@ Public Sub Wordify_GetAdjacentTokenAtCursor(ByRef tokenRange As Range, ByRef tok
     Loop
 
     If endPos <= startPos Then
-        errMsg = "No hay un token adyacente vÃ¡lido."
+        errMsg = "No hay un token adyacente válido."
         Exit Sub
     End If
 
@@ -89,7 +89,7 @@ Public Sub Wordify_GetAdjacentTokenAtCursor(ByRef tokenRange As Range, ByRef tok
     tokenText = tokenRange.Text
 
     If LenB(Trim$(tokenText)) = 0 Then
-        errMsg = "No hay un token vÃ¡lido junto al cursor."
+        errMsg = "No hay un token válido junto al cursor."
     End If
 End Sub
 
@@ -138,5 +138,5 @@ Public Function Wordify_GetVisibleLineRange(ByRef lineRange As Range, ByRef errM
     Wordify_GetVisibleLineRange = True
     Exit Function
 EH:
-    errMsg = "No se pudo identificar la lÃ­nea visible actual."
+    errMsg = "No se pudo identificar la línea visible actual."
 End Function

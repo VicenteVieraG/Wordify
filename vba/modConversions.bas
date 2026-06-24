@@ -26,9 +26,9 @@ Public Function Wordify_ConvertTimeToWords(ByVal hourVal As Long, ByVal minuteVa
 End Function
 
 Public Function Wordify_ConvertLandToWords(ByVal h As Long, ByVal a As Long, ByVal c As Long) As String
-    Wordify_ConvertLandToWords = Wordify_NumberForFeminineNoun(h) & " " & Wordify_Pluralize("hect√°rea", "hect√°reas", h) & " " & _
-                                 Wordify_NumberForFeminineNoun(a) & " " & Wordify_Pluralize("√°rea", "√°reas", a) & " " & _
-                                 Wordify_NumberForFeminineNoun(c) & " " & Wordify_Pluralize("centi√°rea", "centi√°reas", c)
+    Wordify_ConvertLandToWords = Wordify_NumberForFeminineNoun(h) & " " & Wordify_Pluralize("hect·rea", "hect·reas", h) & " " & _
+                                 Wordify_NumberForFeminineNoun(a) & " " & Wordify_Pluralize("·rea", "·reas", a) & " " & _
+                                 Wordify_NumberForFeminineNoun(c) & " " & Wordify_Pluralize("centi·rea", "centi·reas", c)
 End Function
 
 Public Function Wordify_ConvertCurrencyMXN(ByVal intPart As String, ByVal decPart As String) As String
@@ -70,7 +70,7 @@ Public Function Wordify_ConvertSpelling(ByVal token As String, Optional ByVal up
         mapped = Wordify_MapSpellingSymbol(ch)
 
         If Len(mapped) = 0 Then
-            errMsg = "S√≠mbolo no soportado para deletreo: '" & ch & "'."
+            errMsg = "SÌmbolo no soportado para deletreo: '" & ch & "'."
             Exit Function
         End If
 
@@ -103,7 +103,7 @@ Private Function Wordify_MapSpellingSymbol(ByVal ch As String) As String
         Case "L": Wordify_MapSpellingSymbol = "letra ""ELE"""
         Case "M": Wordify_MapSpellingSymbol = "letra ""EME"""
         Case "N": Wordify_MapSpellingSymbol = "letra ""ENE"""
-        Case "√ë": Wordify_MapSpellingSymbol = "letra ""E√ëE"""
+        Case "—": Wordify_MapSpellingSymbol = "letra ""E—E"""
         Case "O": Wordify_MapSpellingSymbol = "letra ""O"""
         Case "P": Wordify_MapSpellingSymbol = "letra ""PE"""
         Case "Q": Wordify_MapSpellingSymbol = "letra ""CU"""
@@ -116,11 +116,11 @@ Private Function Wordify_MapSpellingSymbol(ByVal ch As String) As String
         Case "X": Wordify_MapSpellingSymbol = "letra ""EQUIS"""
         Case "Y": Wordify_MapSpellingSymbol = "letra ""I GRIEGA"""
         Case "Z": Wordify_MapSpellingSymbol = "letra ""ZETA"""
-        Case "√Å": Wordify_MapSpellingSymbol = "letra ""A"""
-        Case "√â": Wordify_MapSpellingSymbol = "letra ""E"""
-        Case "√ç": Wordify_MapSpellingSymbol = "letra ""I"""
-        Case "√ì": Wordify_MapSpellingSymbol = "letra ""O"""
-        Case "√ö", "√ú": Wordify_MapSpellingSymbol = "letra ""U"""
+        Case "¡": Wordify_MapSpellingSymbol = "letra ""A"""
+        Case "…": Wordify_MapSpellingSymbol = "letra ""E"""
+        Case "Õ": Wordify_MapSpellingSymbol = "letra ""I"""
+        Case "”": Wordify_MapSpellingSymbol = "letra ""O"""
+        Case "⁄", "‹": Wordify_MapSpellingSymbol = "letra ""U"""
         Case "0" To "9": Wordify_MapSpellingSymbol = Wordify_DigitName(ch)
         Case ".": Wordify_MapSpellingSymbol = "punto"
         Case ",": Wordify_MapSpellingSymbol = "coma"
@@ -130,24 +130,24 @@ Private Function Wordify_MapSpellingSymbol(ByVal ch As String) As String
         Case "_": Wordify_MapSpellingSymbol = "guion bajo"
         Case "/": Wordify_MapSpellingSymbol = "barra"
         Case "\\": Wordify_MapSpellingSymbol = "barra invertida"
-        Case "(": Wordify_MapSpellingSymbol = "par√©ntesis abre"
-        Case ")": Wordify_MapSpellingSymbol = "par√©ntesis cierra"
+        Case "(": Wordify_MapSpellingSymbol = "parÈntesis abre"
+        Case ")": Wordify_MapSpellingSymbol = "parÈntesis cierra"
         Case "[": Wordify_MapSpellingSymbol = "corchete abre"
         Case "]": Wordify_MapSpellingSymbol = "corchete cierra"
         Case "{": Wordify_MapSpellingSymbol = "llave abre"
         Case "}": Wordify_MapSpellingSymbol = "llave cierra"
         Case "'": Wordify_MapSpellingSymbol = "comilla simple"
         Case """": Wordify_MapSpellingSymbol = "comillas"
-        Case "!": Wordify_MapSpellingSymbol = "signo de exclamaci√≥n"
-        Case "¬°": Wordify_MapSpellingSymbol = "signo de exclamaci√≥n de apertura"
-        Case "?": Wordify_MapSpellingSymbol = "signo de interrogaci√≥n"
-        Case "¬ø": Wordify_MapSpellingSymbol = "signo de interrogaci√≥n de apertura"
+        Case "!": Wordify_MapSpellingSymbol = "signo de exclamaciÛn"
+        Case "°": Wordify_MapSpellingSymbol = "signo de exclamaciÛn de apertura"
+        Case "?": Wordify_MapSpellingSymbol = "signo de interrogaciÛn"
+        Case "ø": Wordify_MapSpellingSymbol = "signo de interrogaciÛn de apertura"
         Case "#": Wordify_MapSpellingSymbol = "almohadilla"
         Case "$": Wordify_MapSpellingSymbol = "signo de peso"
         Case "%": Wordify_MapSpellingSymbol = "por ciento"
         Case "&": Wordify_MapSpellingSymbol = "ampersand"
         Case "=": Wordify_MapSpellingSymbol = "igual"
-        Case "+": Wordify_MapSpellingSymbol = "m√°s"
+        Case "+": Wordify_MapSpellingSymbol = "m·s"
         Case "*": Wordify_MapSpellingSymbol = "asterisco"
         Case "@": Wordify_MapSpellingSymbol = "arroba"
         Case Else
@@ -188,7 +188,7 @@ Private Function Wordify_NumberForFeminineNoun(ByVal n As Long) As String
 
     If Right$(w, 6) = "un" Then
         w = Left$(w, Len(w) - 2) & "una"
-    ElseIf Right$(w, 8) = "veinti√∫n" Then
+    ElseIf Right$(w, 8) = "veinti˙n" Then
         w = Left$(w, Len(w) - 8) & "veintiuna"
     Else
         w = Replace(w, " y un", " y una")

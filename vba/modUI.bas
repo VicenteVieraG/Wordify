@@ -6,8 +6,8 @@ Public Sub Wordify_ShowError(ByVal reasonText As String)
 End Sub
 
 Public Sub Wordify_ShowUnexpectedError(ByVal procName As String, ByVal errNumber As Long, ByVal errDesc As String)
-    MsgBox "OcurriÃ³ un error inesperado en " & procName & "." & vbCrLf & _
-           "CÃ³digo: " & CStr(errNumber) & vbCrLf & _
+    MsgBox "Ocurrió un error inesperado en " & procName & "." & vbCrLf & _
+           "Código: " & CStr(errNumber) & vbCrLf & _
            "Detalle: " & errDesc, _
            vbCritical, "Wordify"
 End Sub

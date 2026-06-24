@@ -50,7 +50,7 @@ Public Function Wordify_IntegerToWords(ByVal numText As String) As String
                     End If
                 Case 2
                     If groupValue = 1 Then
-                        parts.Add "un millÃ³n"
+                        parts.Add "un millón"
                     Else
                         parts.Add Wordify_Apocopate(grpText) & " millones"
                     End If
@@ -116,17 +116,17 @@ Public Function Wordify_TwoDigitsToWords(ByVal n As Long) As String
         Case 13: Wordify_TwoDigitsToWords = "trece"
         Case 14: Wordify_TwoDigitsToWords = "catorce"
         Case 15: Wordify_TwoDigitsToWords = "quince"
-        Case 16: Wordify_TwoDigitsToWords = "diecisÃ©is"
+        Case 16: Wordify_TwoDigitsToWords = "dieciséis"
         Case 17: Wordify_TwoDigitsToWords = "diecisiete"
         Case 18: Wordify_TwoDigitsToWords = "dieciocho"
         Case 19: Wordify_TwoDigitsToWords = "diecinueve"
         Case 20: Wordify_TwoDigitsToWords = "veinte"
         Case 21: Wordify_TwoDigitsToWords = "veintiuno"
-        Case 22: Wordify_TwoDigitsToWords = "veintidÃ³s"
-        Case 23: Wordify_TwoDigitsToWords = "veintitrÃ©s"
+        Case 22: Wordify_TwoDigitsToWords = "veintidós"
+        Case 23: Wordify_TwoDigitsToWords = "veintitrés"
         Case 24: Wordify_TwoDigitsToWords = "veinticuatro"
         Case 25: Wordify_TwoDigitsToWords = "veinticinco"
-        Case 26: Wordify_TwoDigitsToWords = "veintisÃ©is"
+        Case 26: Wordify_TwoDigitsToWords = "veintiséis"
         Case 27: Wordify_TwoDigitsToWords = "veintisiete"
         Case 28: Wordify_TwoDigitsToWords = "veintiocho"
         Case 29: Wordify_TwoDigitsToWords = "veintinueve"
@@ -174,8 +174,8 @@ End Function
 Public Function Wordify_Apocopate(ByVal txt As String) As String
     Dim w As String
     w = txt
-    w = Replace(w, " veintiuno", " veintiÃºn")
-    If Right$(w, 8) = "veintiuno" Then w = Left$(w, Len(w) - 8) & "veintiÃºn"
+    w = Replace(w, " veintiuno", " veintiún")
+    If Right$(w, 8) = "veintiuno" Then w = Left$(w, Len(w) - 8) & "veintiún"
 
     w = Replace(w, " y uno", " y un")
     If Right$(w, 3) = "uno" Then w = Left$(w, Len(w) - 3) & "un"

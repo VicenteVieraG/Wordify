@@ -11,7 +11,7 @@ Public Function Wordify_ValidateTimeToken(ByVal txt As String, ByRef hourVal As 
     rx.Global = False
 
     If Not rx.Test(txt) Then
-        errMsg = "Formato de hora invÃ¡lido. Use HH:MM o H:MM."
+        errMsg = "Formato de hora inválido. Use HH:MM o H:MM."
         Exit Function
     End If
 
@@ -41,7 +41,7 @@ Public Function Wordify_ValidateLandToken(ByVal txt As String, ByRef h As Long, 
     rx.Pattern = "^\d{2}-\d{2}-\d{2}$"
 
     If Not rx.Test(txt) Then
-        errMsg = "Formato invÃ¡lido. Use exactamente NN-NN-NN."
+        errMsg = "Formato inválido. Use exactamente NN-NN-NN."
         Exit Function
     End If
 
@@ -59,12 +59,12 @@ Public Function Wordify_ValidateNumericToken(ByVal txt As String, ByRef intPart 
     txt = Trim$(txt)
 
     If Len(txt) = 0 Then
-        errMsg = "No hay valor numÃ©rico para convertir."
+        errMsg = "No hay valor numérico para convertir."
         Exit Function
     End If
 
     If Left$(txt, 1) = "-" Then
-        errMsg = "No se permiten nÃºmeros negativos."
+        errMsg = "No se permiten números negativos."
         Exit Function
     End If
 
@@ -78,12 +78,12 @@ Public Function Wordify_ValidateNumericToken(ByVal txt As String, ByRef intPart 
     rx.Global = False
 
     If Not rx.Test(txt) Then
-        errMsg = "Formato numÃ©rico invÃ¡lido. Use entero o decimal con punto y mÃ¡ximo 8 decimales."
+        errMsg = "Formato numérico inválido. Use entero o decimal con punto y máximo 8 decimales."
         Exit Function
     End If
 
     If Right$(txt, 1) = "." Then
-        errMsg = "Formato numÃ©rico invÃ¡lido: no se permite terminar en punto."
+        errMsg = "Formato numérico inválido: no se permite terminar en punto."
         Exit Function
     End If
 
@@ -107,7 +107,7 @@ Public Function Wordify_ValidateSpellingToken(ByVal txt As String, ByRef errMsg 
     End If
 
     If InStr(1, txt, " ", vbBinaryCompare) > 0 Or InStr(1, txt, vbTab, vbBinaryCompare) > 0 Or InStr(1, txt, vbCr, vbBinaryCompare) > 0 Then
-        errMsg = "Para deletrear, el texto no debe contener espacios ni saltos de lÃ­nea."
+        errMsg = "Para deletrear, el texto no debe contener espacios ni saltos de línea."
         Exit Function
     End If
 

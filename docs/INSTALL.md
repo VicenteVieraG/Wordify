@@ -1,40 +1,118 @@
-# Wordify (VBA para Microsoft Word Desktop en Windows)
+# Instalacion de Wordify
 
-## 1) Importar módulos VBA
+Wordify se instala como modulos VBA en Microsoft Word Desktop para Windows. El destino predeterminado es `Normal.dotm`, de modo que los comandos y atajos queden disponibles para el usuario actual.
 
-1. Abra Word Desktop (Windows).
+## Requisitos
+
+- Windows.
+- Microsoft Word Desktop instalado.
+- PowerShell.
+- Word cerrado antes de instalar o desinstalar.
+- Acceso confiable al proyecto VBA habilitado en Word:
+  `File > Options > Trust Center > Trust Center Settings > Macro Settings > Trust access to the VBA project object model`.
+
+## Instalacion automatica desde este checkout
+
+Desde la raiz del repositorio:
+
+```powershell
+.\scripts\install-wordify-addin.ps1 -SkipSourceBootstrap
+```
+
+El parametro `-SkipSourceBootstrap` indica que el codigo fuente ya esta disponible localmente. El script usa `.\vba` como origen, importa los modulos en `Normal.dotm` e instala los atajos de teclado.
+
+Si PowerShell bloquea la ejecucion del script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-wordify-addin.ps1 -SkipSourceBootstrap
+```
+
+## Instalacion desde cero
+
+Si el repositorio no existe localmente, el instalador puede preparar el codigo fuente en `%USERPROFILE%\src\Wordify`. En ese modo intenta usar Scoop y Git, instalando lo necesario para el usuario actual si falta.
+
+```powershell
+.\scripts\install-wordify-addin.ps1
+```
+
+Opciones relacionadas:
+
+```powershell
+.\scripts\install-wordify-addin.ps1 -RepositoryUrl https://github.com/VicenteVieraG/Wordify.git -ClonePath "$HOME\src\Wordify"
+```
+
+## Opciones utiles
+
+Vista previa sin aplicar cambios:
+
+```powershell
+.\scripts\install-wordify-addin.ps1 -SkipSourceBootstrap -WhatIf
+```
+
+Mostrar Word durante la automatizacion:
+
+```powershell
+.\scripts\install-wordify-addin.ps1 -SkipSourceBootstrap -Visible
+```
+
+Instalar modulos sin atajos:
+
+```powershell
+.\scripts\install-wordify-addin.ps1 -SkipSourceBootstrap -SkipKeybindings
+```
+
+Usar otra carpeta de modulos VBA:
+
+```powershell
+.\scripts\install-wordify-addin.ps1 -VbaPath C:\ruta\a\Wordify\vba -SkipSourceBootstrap
+```
+
+## Desinstalacion
+
+```powershell
+.\scripts\install-wordify-addin.ps1 -Uninstall
+```
+
+La desinstalacion elimina los modulos VBA de Wordify y, salvo que se use `-SkipKeybindings`, tambien elimina sus atajos.
+
+## Atajos instalados
+
+- `F2`: hora a texto.
+- `F3`: deletreo.
+- `Shift+F3`: deletreo en mayusculas.
+- `F4`: hectarea-area-centiarea.
+- `F5`: cantidad a texto.
+- `F6`: moneda nacional MXN.
+- `F7`: metros lineales.
+- `F8`: metros cuadrados.
+- `F9`: borrar seleccion o token adyacente.
+- `F10`: borrar desde cursor al fin de la linea visible.
+- `F11`: borrar linea visible actual.
+
+Los atajos se guardan en `Normal.dotm` mediante `CustomizationContext = NormalTemplate`.
+
+## Instalacion manual alternativa
+
+Use este flujo solo si no puede ejecutar el instalador PowerShell.
+
+1. Abra Word Desktop en Windows.
 2. Presione `Alt + F11` para abrir el Editor de VBA.
-3. En su plantilla objetivo (`Normal.dotm` o una plantilla `.dotm` corporativa), use **File > Import File...** e importe estos archivos:
-   - `vba/modSetup.bas`
-   - `vba/modCommands.bas`
-   - `vba/modTokenDetection.bas`
-   - `vba/modValidation.bas`
+3. En `Normal.dotm` o en una plantilla `.dotm` corporativa, use `File > Import File...` e importe:
    - `vba/modSpanishNumbers.bas`
    - `vba/modConversions.bas`
+   - `vba/modValidation.bas`
+   - `vba/modTokenDetection.bas`
    - `vba/modDeletion.bas`
    - `vba/modUI.bas`
-4. Guarde la plantilla como `.dotm`.
+   - `vba/modCommands.bas`
+   - `vba/modSetup.bas`
+4. Ejecute la macro `Wordify_InstallKeybindings` para crear los atajos.
+5. Guarde la plantilla.
 
-## 2) Instalar atajos de teclado
+Para quitar solamente los atajos desde VBA, ejecute `Wordify_RemoveKeybindings`.
 
-1. En VBA, ejecute la macro `Wordify_InstallKeybindings`.
-2. Esto asigna:
-   - `F2` hora a texto
-   - `F3` deletreo
-   - `Shift+F3` deletreo en mayúsculas
-   - `F4` hectárea-área-centiárea
-   - `F5` cantidad a texto
-   - `F6` moneda nacional (MXN)
-   - `F7` metros lineales
-   - `F8` metros cuadrados
-   - `F9` borrar selección/token adyacente
-   - `F10` borrar desde cursor al fin de línea visible
-   - `F11` borrar línea visible actual
+## Notas
 
-## 3) Dónde se guardan los atajos
-
-La macro instala los atajos en `Normal.dotm` (CustomizationContext = `NormalTemplate`) para disponibilidad general del usuario.
-
-## 4) Desinstalación de atajos
-
-Ejecute `Wordify_RemoveKeybindings`.
+- Cierre Word antes de ejecutar el script. Si existe un proceso `WINWORD`, el instalador se detiene para evitar conflictos con `Normal.dotm`.
+- Si Word bloquea la automatizacion VBA, revise la opcion de Trust Center indicada en requisitos.
+- `manifest.xml` no participa en esta instalacion; es un artefacto de add-in Office y no representa el flujo operativo actual.

@@ -4,6 +4,15 @@ param(
     [string]$VbaPath,
 
     [Parameter(Mandatory = $false)]
+    [string]$RepositoryUrl = "https://github.com/VicenteVieraG/Wordify.git",
+
+    [Parameter(Mandatory = $false)]
+    [string]$ClonePath = (Join-Path (Join-Path $HOME "src") "Wordify"),
+
+    [Parameter(Mandatory = $false)]
+    [switch]$SkipSourceBootstrap,
+
+    [Parameter(Mandatory = $false)]
     [switch]$SkipKeybindings,
 
     [Parameter(Mandatory = $false)]
@@ -44,6 +53,238 @@ $KeyBindings = @(
     [pscustomobject]@{ Command = "Wordify_F10_DeleteToVisibleLineEnd"; Name = "F10";      Keys = @(121) }
     [pscustomobject]@{ Command = "Wordify_F11_DeleteVisibleLine";      Name = "F11";      Keys = @(122) }
 )
+
+function Add-ScoopToProcessPath {
+    $candidatePaths = New-Object System.Collections.Generic.List[string]
+
+    $scoopRoot = $env:SCOOP
+    if ([string]::IsNullOrWhiteSpace($scoopRoot)) {
+        $scoopRoot = Join-Path $HOME "scoop"
+    }
+
+    [void]$candidatePaths.Add((Join-Path $scoopRoot "shims"))
+
+    $globalScoopRoot = $env:SCOOP_GLOBAL
+    if ([string]::IsNullOrWhiteSpace($globalScoopRoot)) {
+        $globalScoopRoot = Join-Path $env:ProgramData "scoop"
+    }
+
+    [void]$candidatePaths.Add((Join-Path $globalScoopRoot "shims"))
+
+    $currentPaths = @($env:PATH -split [System.IO.Path]::PathSeparator)
+    $pathsToPrepend = New-Object System.Collections.Generic.List[string]
+
+    foreach ($candidatePath in $candidatePaths) {
+        if ([string]::IsNullOrWhiteSpace($candidatePath)) {
+            continue
+        }
+
+        if (-not (Test-Path -LiteralPath $candidatePath -PathType Container)) {
+            continue
+        }
+
+        $alreadyPresent = $false
+        foreach ($currentPath in $currentPaths) {
+            if ($candidatePath.Equals($currentPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $alreadyPresent = $true
+                break
+            }
+        }
+
+        if (-not $alreadyPresent) {
+            [void]$pathsToPrepend.Add($candidatePath)
+        }
+    }
+
+    if ($pathsToPrepend.Count -gt 0) {
+        $env:PATH = (($pathsToPrepend + $currentPaths) -join [System.IO.Path]::PathSeparator)
+    }
+}
+
+function Get-ExecutableCommandPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    $command = Get-Command -Name $Name -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $command) {
+        return $null
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($command.Source)) {
+        return $command.Source
+    }
+
+    return $command.Name
+}
+
+function Install-Scoop {
+    Add-ScoopToProcessPath
+
+    $scoopCommand = Get-ExecutableCommandPath -Name "scoop"
+    if ($null -ne $scoopCommand) {
+        Write-Host "Scoop is already installed: $scoopCommand"
+        return $scoopCommand
+    }
+
+    if (-not $PSCmdlet.ShouldProcess("Scoop", "Install package manager for current user")) {
+        return $null
+    }
+
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+    Invoke-Expression (Invoke-RestMethod -Uri "https://get.scoop.sh")
+    Add-ScoopToProcessPath
+
+    $scoopCommand = Get-ExecutableCommandPath -Name "scoop"
+    if ($null -eq $scoopCommand) {
+        throw "Scoop was installed, but its command is not available on PATH. Open a new PowerShell session and rerun this script."
+    }
+
+    Write-Host "Installed Scoop: $scoopCommand"
+    return $scoopCommand
+}
+
+function Install-Git {
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [string]$ScoopCommand
+    )
+
+    Add-ScoopToProcessPath
+
+    $gitCommand = Get-ExecutableCommandPath -Name "git"
+    if ($null -ne $gitCommand) {
+        Write-Host "Git is already installed: $gitCommand"
+        return $gitCommand
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ScoopCommand)) {
+        throw "Git is required to clone Wordify, but Scoop is not available to install it."
+    }
+
+    if (-not $PSCmdlet.ShouldProcess("git", "Install Git with Scoop")) {
+        return $null
+    }
+
+    & $ScoopCommand install git
+    if ($LASTEXITCODE -ne 0) {
+        throw "Scoop failed to install Git. Exit code: $LASTEXITCODE"
+    }
+
+    Add-ScoopToProcessPath
+
+    $gitCommand = Get-ExecutableCommandPath -Name "git"
+    if ($null -eq $gitCommand) {
+        throw "Git was installed, but its command is not available on PATH. Open a new PowerShell session and rerun this script."
+    }
+
+    Write-Host "Installed Git: $gitCommand"
+    return $gitCommand
+}
+
+function Resolve-AbsolutePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    return [System.IO.Path]::GetFullPath($Path)
+}
+
+function Test-WordifySourceRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    $gitPath = Join-Path $Root ".git"
+    $vbaPath = Join-Path $Root "vba"
+    $manifestPath = Join-Path $Root "manifest.xml"
+
+    return (
+        (Test-Path -LiteralPath $gitPath -PathType Any) -and
+        (Test-Path -LiteralPath $vbaPath -PathType Container) -and
+        (Test-Path -LiteralPath $manifestPath -PathType Leaf)
+    )
+}
+
+function Initialize-WordifySourceCode {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepositoryUrl,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ClonePath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$GitCommand
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RepositoryUrl)) {
+        throw "RepositoryUrl cannot be empty."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ClonePath)) {
+        throw "ClonePath cannot be empty."
+    }
+
+    $resolvedClonePath = Resolve-AbsolutePath -Path $ClonePath
+    if (Test-WordifySourceRoot -Root $resolvedClonePath) {
+        Write-Host "Using existing Wordify source checkout: $resolvedClonePath"
+        return $resolvedClonePath
+    }
+
+    if (Test-Path -LiteralPath $resolvedClonePath -PathType Container) {
+        $existingItems = @(Get-ChildItem -LiteralPath $resolvedClonePath -Force)
+        if ($existingItems.Count -gt 0) {
+            throw "Clone target exists but is not an empty folder or a Wordify checkout: $resolvedClonePath"
+        }
+    }
+    else {
+        $parentPath = Split-Path -Parent $resolvedClonePath
+        if (-not [string]::IsNullOrWhiteSpace($parentPath)) {
+            if ($PSCmdlet.ShouldProcess($parentPath, "Create source parent directory")) {
+                [void](New-Item -ItemType Directory -Path $parentPath -Force)
+            }
+        }
+    }
+
+    if (-not $PSCmdlet.ShouldProcess($resolvedClonePath, "Clone $RepositoryUrl")) {
+        return $resolvedClonePath
+    }
+
+    & $GitCommand clone $RepositoryUrl $resolvedClonePath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Git failed to clone Wordify. Exit code: $LASTEXITCODE"
+    }
+
+    if (-not (Test-WordifySourceRoot -Root $resolvedClonePath)) {
+        throw "The cloned repository does not look like a Wordify source checkout: $resolvedClonePath"
+    }
+
+    Write-Host "Cloned Wordify source checkout: $resolvedClonePath"
+    return $resolvedClonePath
+}
+
+function Initialize-WordifyInstallSource {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepositoryUrl,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ClonePath
+    )
+
+    $scoopCommand = Install-Scoop
+    $gitCommand = Install-Git -ScoopCommand $scoopCommand
+    if ([string]::IsNullOrWhiteSpace($gitCommand)) {
+        throw "Git is required to clone Wordify."
+    }
+
+    return Initialize-WordifySourceCode -RepositoryUrl $RepositoryUrl -ClonePath $ClonePath -GitCommand $gitCommand
+}
 
 function Resolve-WordifyModuleFiles {
     param(
@@ -390,10 +631,15 @@ function Save-WordTemplate {
     }
 }
 
+$repoRoot = Split-Path -Parent $PSScriptRoot
 Assert-WordAutomationIsAvailable
+
+if ((-not $Uninstall) -and (-not $SkipSourceBootstrap) -and [string]::IsNullOrWhiteSpace($VbaPath)) {
+    $repoRoot = Initialize-WordifyInstallSource -RepositoryUrl $RepositoryUrl -ClonePath $ClonePath
+}
+
 Assert-NormalTemplateIsAvailable
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($VbaPath)) {
     $VbaPath = Join-Path $repoRoot "vba"
 }
