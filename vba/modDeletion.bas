@@ -28,6 +28,7 @@ Public Sub Wordify_DeleteToVisibleLineEnd()
     On Error GoTo EH
     Dim lineRng As Range
     Dim delRng As Range
+    Dim startPos As Long
     Dim errMsg As String
 
     If Not Wordify_GetVisibleLineRange(lineRng, errMsg) Then
@@ -35,7 +36,12 @@ Public Sub Wordify_DeleteToVisibleLineEnd()
         Exit Sub
     End If
 
-    Set delRng = ActiveDocument.Range(Selection.Range.Start, lineRng.End)
+    startPos = Selection.Range.Start
+    If startPos < lineRng.Start Then startPos = lineRng.Start
+    If startPos > lineRng.End Then startPos = lineRng.End
+
+    Set delRng = lineRng.Duplicate
+    delRng.SetRange startPos, lineRng.End
     If delRng.Start < delRng.End Then delRng.Delete
     Exit Sub
 EH:

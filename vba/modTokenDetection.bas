@@ -122,21 +122,53 @@ End Function
 ' Visible line approximation in Word layout.
 Public Function Wordify_GetVisibleLineRange(ByRef lineRange As Range, ByRef errMsg As String) As Boolean
     On Error GoTo EH
-    Dim r As Range
+    Dim originalSelection As Range
+    Dim originalStart As Long
+    Dim originalEnd As Long
+    Dim cursorPos As Long
+    Dim lineStart As Long
+    Dim lineEnd As Long
+    Dim oldScreenUpdating As Boolean
+    Dim screenUpdatingChanged As Boolean
 
-    Set r = Selection.Range.Duplicate
-    r.Collapse wdCollapseStart
-
-    r.MoveStart wdLine, 0
-    r.MoveEnd wdLine, 1
-
-    If r.End > ActiveDocument.Content.End Then
-        r.End = ActiveDocument.Content.End
+    If Selection Is Nothing Then
+        errMsg = "No hay una selección activa."
+        Exit Function
     End If
 
-    Set lineRange = r
+    Set originalSelection = Selection.Range.Duplicate
+    originalStart = originalSelection.Start
+    originalEnd = originalSelection.End
+    cursorPos = originalStart
+
+    oldScreenUpdating = Application.ScreenUpdating
+    Application.ScreenUpdating = False
+    screenUpdatingChanged = True
+
+    Selection.SetRange cursorPos, cursorPos
+    Selection.HomeKey Unit:=wdLine
+    lineStart = Selection.Range.Start
+
+    Selection.SetRange cursorPos, cursorPos
+    Selection.EndKey Unit:=wdLine
+    lineEnd = Selection.Range.End
+
+    Selection.SetRange originalStart, originalEnd
+    Application.ScreenUpdating = oldScreenUpdating
+    screenUpdatingChanged = False
+
+    If lineEnd < lineStart Then
+        errMsg = "No se pudo identificar la línea visible actual."
+        Exit Function
+    End If
+
+    Set lineRange = originalSelection.Duplicate
+    lineRange.SetRange lineStart, lineEnd
     Wordify_GetVisibleLineRange = True
     Exit Function
 EH:
+    On Error Resume Next
+    If Not originalSelection Is Nothing Then Selection.SetRange originalStart, originalEnd
+    If screenUpdatingChanged Then Application.ScreenUpdating = oldScreenUpdating
     errMsg = "No se pudo identificar la línea visible actual."
 End Function

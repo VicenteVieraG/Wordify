@@ -3,7 +3,7 @@
 ## Detección de línea visible (F10/F11)
 Word VBA no expone una API perfecta para obtener segmentos visuales envueltos idénticos al motor de render en todos los escenarios (zoom extremo, columnas complejas, tablas anidadas, objetos flotantes).
 
-Wordify usa `Range.MoveStart wdLine` + `Range.MoveEnd wdLine` como aproximación conservadora de la línea visible actual.
+Wordify usa `Selection.HomeKey wdLine` + `Selection.EndKey wdLine` sobre una selección temporal como aproximación conservadora de la línea visible actual.
 
 ### Implicaciones
 - En texto normal de párrafos con ajuste de línea, el comportamiento coincide de forma estable con la línea visual esperada.
