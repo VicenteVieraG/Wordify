@@ -27,18 +27,23 @@ Si PowerShell bloquea la ejecucion del script:
 powershell -ExecutionPolicy Bypass -File .\scripts\install-wordify-addin.ps1 -SkipSourceBootstrap
 ```
 
+Tambien puede ejecutar `Install-Wordify.bat` desde un paquete que incluya `scripts\`, `vba\` y `manifest.xml`. El lanzador usa `-SkipSourceBootstrap` solamente cuando detecta esos archivos locales.
+
 ## Instalacion desde cero
 
-Si el repositorio no existe localmente, el instalador puede preparar el codigo fuente en `%USERPROFILE%\src\Wordify`. En ese modo intenta usar Scoop y Git, instalando lo necesario para el usuario actual si falta.
+Si el repositorio no existe localmente, el instalador puede preparar el codigo fuente en `%USERPROFILE%\Wordify`. En ese modo intenta usar Scoop y Git, instalando lo necesario para el usuario actual si falta.
 
 ```powershell
 .\scripts\install-wordify-addin.ps1
 ```
 
+Desde un paquete minimo que solo incluya `Install-Wordify.bat` y `install-wordify-addin.ps1` en la misma carpeta, el lanzador ejecuta el mismo flujo desde cero. En ese modo el script instala o localiza Scoop, instala o localiza Git, clona el codigo fuente en `%USERPROFILE%\Wordify` y continua la instalacion desde esa carpeta.
+Si `%USERPROFILE%\Wordify` ya existe pero no contiene una fuente valida de Wordify, el script usa `%USERPROFILE%\Wordify\.wordify-source` como carpeta de codigo, salvo que se indique `-ClonePath` explicitamente.
+
 Opciones relacionadas:
 
 ```powershell
-.\scripts\install-wordify-addin.ps1 -RepositoryUrl https://github.com/VicenteVieraG/Wordify.git -ClonePath "$HOME\src\Wordify"
+.\scripts\install-wordify-addin.ps1 -RepositoryUrl https://github.com/VicenteVieraG/Wordify.git -ClonePath "$HOME\Wordify"
 ```
 
 ## Opciones utiles
@@ -73,7 +78,7 @@ Usar otra carpeta de modulos VBA:
 .\scripts\install-wordify-addin.ps1 -Uninstall
 ```
 
-La desinstalacion elimina los modulos VBA de Wordify y, salvo que se use `-SkipKeybindings`, tambien elimina sus atajos.
+La desinstalacion elimina los modulos VBA de Wordify y, salvo que se use `-SkipKeybindings`, tambien elimina sus atajos. Tambien elimina la carpeta de codigo fuente de Wordify indicada por `-ClonePath` o, de forma predeterminada, `%USERPROFILE%\Wordify`; si se uso la carpeta alternativa automatica, elimina `%USERPROFILE%\Wordify\.wordify-source`. Por seguridad, el script solo borra carpetas que todavia parecen una fuente valida de Wordify.
 
 ## Atajos instalados
 

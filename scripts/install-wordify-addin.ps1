@@ -7,7 +7,7 @@ param(
     [string]$RepositoryUrl = "https://github.com/VicenteVieraG/Wordify.git",
 
     [Parameter(Mandatory = $false)]
-    [string]$ClonePath = (Join-Path (Join-Path $HOME "src") "Wordify"),
+    [string]$ClonePath = (Join-Path $HOME "Wordify"),
 
     [Parameter(Mandatory = $false)]
     [switch]$SkipSourceBootstrap,
@@ -119,6 +119,52 @@ function Get-ExecutableCommandPath {
     return $command.Name
 }
 
+function Test-ProcessIsElevated {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Invoke-CommandOutputForHost {
+    param(
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$ScriptBlock
+    )
+
+    $output = @(& $ScriptBlock)
+    foreach ($item in $output) {
+        if ($item -is [System.Management.Automation.ErrorRecord]) {
+            Write-Host $item.ToString()
+        }
+        else {
+            Write-Host $item
+        }
+    }
+}
+
+function Set-ScoopInstallerExecutionPolicy {
+    $permissivePolicies = @("Bypass", "RemoteSigned", "Unrestricted")
+    $effectivePolicy = [string](Get-ExecutionPolicy)
+    if ($permissivePolicies -contains $effectivePolicy) {
+        Write-Host "PowerShell execution policy is $effectivePolicy for this process; continuing."
+        return
+    }
+
+    try {
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction Stop
+    }
+    catch {
+        $effectivePolicy = [string](Get-ExecutionPolicy)
+        $isPolicyOverride = $_.FullyQualifiedErrorId -like "ExecutionPolicyOverride,*"
+        if ($isPolicyOverride -and ($permissivePolicies -contains $effectivePolicy)) {
+            Write-Host "PowerShell execution policy is $effectivePolicy because of a more specific scope; continuing."
+            return
+        }
+
+        throw
+    }
+}
+
 function Install-Scoop {
     Add-ScoopToProcessPath
 
@@ -132,8 +178,24 @@ function Install-Scoop {
         return $null
     }
 
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-    Invoke-Expression (Invoke-RestMethod -Uri "https://get.scoop.sh")
+    Set-ScoopInstallerExecutionPolicy
+
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    $installerScript = (Invoke-WebRequest -UseBasicParsing -Uri "https://get.scoop.sh").Content
+
+    $installerArguments = @()
+    if (Test-ProcessIsElevated) {
+        Write-Host "PowerShell is elevated; installing Scoop with -RunAsAdmin."
+        $installerArguments += "-RunAsAdmin"
+    }
+
+    $Global:LASTEXITCODE = 0
+    $installerBlock = [scriptblock]::Create($installerScript)
+    Invoke-CommandOutputForHost -ScriptBlock { & $installerBlock @installerArguments }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Scoop installer failed. Exit code: $LASTEXITCODE"
+    }
+
     Add-ScoopToProcessPath
 
     $scoopCommand = Get-ExecutableCommandPath -Name "scoop"
@@ -168,7 +230,7 @@ function Install-Git {
         return $null
     }
 
-    & $ScoopCommand install git
+    Invoke-CommandOutputForHost -ScriptBlock { & $ScoopCommand install git }
     if ($LASTEXITCODE -ne 0) {
         throw "Scoop failed to install Git. Exit code: $LASTEXITCODE"
     }
@@ -199,15 +261,114 @@ function Test-WordifySourceRoot {
         [string]$Root
     )
 
-    $gitPath = Join-Path $Root ".git"
     $vbaPath = Join-Path $Root "vba"
     $manifestPath = Join-Path $Root "manifest.xml"
 
     return (
-        (Test-Path -LiteralPath $gitPath -PathType Any) -and
         (Test-Path -LiteralPath $vbaPath -PathType Container) -and
         (Test-Path -LiteralPath $manifestPath -PathType Leaf)
     )
+}
+
+function Get-BundledWordifySourceRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptRoot
+    )
+
+    $candidateRoots = New-Object System.Collections.Generic.List[string]
+    [void]$candidateRoots.Add($ScriptRoot)
+
+    $parentRoot = Split-Path -Parent $ScriptRoot
+    if (-not [string]::IsNullOrWhiteSpace($parentRoot)) {
+        [void]$candidateRoots.Add($parentRoot)
+    }
+
+    $seen = @{}
+    foreach ($candidateRoot in $candidateRoots) {
+        if ([string]::IsNullOrWhiteSpace($candidateRoot)) {
+            continue
+        }
+
+        $resolvedRoot = Resolve-AbsolutePath -Path $candidateRoot
+        $key = $resolvedRoot.ToUpperInvariant()
+        if ($seen.ContainsKey($key)) {
+            continue
+        }
+
+        $seen[$key] = $true
+        if (Test-WordifySourceRoot -Root $resolvedRoot) {
+            return $resolvedRoot
+        }
+    }
+
+    return $null
+}
+
+function Get-InstallerPackageRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ScriptRoot)) {
+        return $null
+    }
+
+    $packageRoot = $ScriptRoot
+    $scriptRootName = Split-Path -Leaf $ScriptRoot
+    if ($scriptRootName.Equals("scripts", [System.StringComparison]::OrdinalIgnoreCase)) {
+        $parentRoot = Split-Path -Parent $ScriptRoot
+        if (-not [string]::IsNullOrWhiteSpace($parentRoot)) {
+            $packageRoot = $parentRoot
+        }
+    }
+
+    return Resolve-AbsolutePath -Path $packageRoot
+}
+
+function Resolve-BootstrapClonePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PreferredPath,
+
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [string]$InstallerRoot,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$ClonePathWasExplicit
+    )
+
+    $resolvedPreferredPath = Resolve-AbsolutePath -Path $PreferredPath
+    if ($ClonePathWasExplicit) {
+        return $resolvedPreferredPath
+    }
+
+    if (Test-WordifySourceRoot -Root $resolvedPreferredPath) {
+        return $resolvedPreferredPath
+    }
+
+    if (-not (Test-Path -LiteralPath $resolvedPreferredPath -PathType Container)) {
+        return $resolvedPreferredPath
+    }
+
+    $existingItems = @(Get-ChildItem -LiteralPath $resolvedPreferredPath -Force)
+    if ($existingItems.Count -eq 0) {
+        return $resolvedPreferredPath
+    }
+
+    $fallbackPath = Join-Path $resolvedPreferredPath ".wordify-source"
+    if (-not [string]::IsNullOrWhiteSpace($InstallerRoot)) {
+        $resolvedInstallerRoot = Resolve-AbsolutePath -Path $InstallerRoot
+        if ($resolvedPreferredPath.Equals($resolvedInstallerRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Host "Installer package occupies the default clone folder. Using source clone path: $fallbackPath"
+            return $fallbackPath
+        }
+    }
+
+    Write-Host "Default clone folder exists but is not a Wordify source folder. Using source clone path: $fallbackPath"
+    return $fallbackPath
 }
 
 function Initialize-WordifySourceCode {
@@ -255,7 +416,7 @@ function Initialize-WordifySourceCode {
         return $resolvedClonePath
     }
 
-    & $GitCommand clone $RepositoryUrl $resolvedClonePath
+    Invoke-CommandOutputForHost -ScriptBlock { & $GitCommand clone $RepositoryUrl $resolvedClonePath }
     if ($LASTEXITCODE -ne 0) {
         throw "Git failed to clone Wordify. Exit code: $LASTEXITCODE"
     }
@@ -277,6 +438,20 @@ function Initialize-WordifyInstallSource {
         [string]$ClonePath
     )
 
+    $resolvedClonePath = Resolve-AbsolutePath -Path $ClonePath
+    if (Test-WordifySourceRoot -Root $resolvedClonePath) {
+        Write-Host "Using existing Wordify source: $resolvedClonePath"
+        return $resolvedClonePath
+    }
+
+    if (Test-Path -LiteralPath $resolvedClonePath -PathType Container) {
+        $existingItems = @(Get-ChildItem -LiteralPath $resolvedClonePath -Force)
+        if ($existingItems.Count -gt 0) {
+            throw "Clone target exists but is not an empty folder or a Wordify source folder: $resolvedClonePath"
+        }
+    }
+
+    Write-Host "Preparing Scoop and Git for Wordify source bootstrap."
     $scoopCommand = Install-Scoop
     $gitCommand = Install-Git -ScoopCommand $scoopCommand
     if ([string]::IsNullOrWhiteSpace($gitCommand)) {
@@ -284,6 +459,103 @@ function Initialize-WordifyInstallSource {
     }
 
     return Initialize-WordifySourceCode -RepositoryUrl $RepositoryUrl -ClonePath $ClonePath -GitCommand $gitCommand
+}
+
+function Get-NormalizedPathForComparison {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $trimChars = [char[]]("\\/")
+    return (Resolve-AbsolutePath -Path $Path).TrimEnd($trimChars)
+}
+
+function Get-WordifySourceRemovalCandidates {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ClonePath,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$ClonePathWasExplicit
+    )
+
+    $candidatePaths = New-Object System.Collections.Generic.List[string]
+    $resolvedClonePath = Resolve-AbsolutePath -Path $ClonePath
+    [void]$candidatePaths.Add($resolvedClonePath)
+
+    if (-not $ClonePathWasExplicit) {
+        [void]$candidatePaths.Add((Join-Path $resolvedClonePath ".wordify-source"))
+    }
+
+    $seen = @{}
+    foreach ($candidatePath in $candidatePaths) {
+        $resolvedCandidatePath = Resolve-AbsolutePath -Path $candidatePath
+        $key = $resolvedCandidatePath.ToUpperInvariant()
+        if ($seen.ContainsKey($key)) {
+            continue
+        }
+
+        $seen[$key] = $true
+        $resolvedCandidatePath
+    }
+}
+
+function Assert-SafeWordifySourceRemovalTarget {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TargetPath
+    )
+
+    $resolvedTargetPath = (Resolve-Path -LiteralPath $TargetPath).ProviderPath
+    if (-not (Test-WordifySourceRoot -Root $resolvedTargetPath)) {
+        throw "Refusing to remove source folder because it is not a recognized Wordify source folder: $resolvedTargetPath"
+    }
+
+    $normalizedTarget = Get-NormalizedPathForComparison -Path $resolvedTargetPath
+    $normalizedRoot = (Get-NormalizedPathForComparison -Path ([System.IO.Path]::GetPathRoot($resolvedTargetPath)))
+    if ($normalizedTarget.Equals($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove filesystem root as a source folder: $resolvedTargetPath"
+    }
+
+    $normalizedHome = Get-NormalizedPathForComparison -Path $HOME
+    if ($normalizedTarget.Equals($normalizedHome, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove the user profile directory as a source folder: $resolvedTargetPath"
+    }
+
+    return $resolvedTargetPath
+}
+
+function Remove-WordifySourceFolders {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ClonePath,
+
+        [Parameter(Mandatory = $true)]
+        [bool]$ClonePathWasExplicit
+    )
+
+    $removed = New-Object System.Collections.Generic.List[string]
+    $candidatePaths = @(Get-WordifySourceRemovalCandidates -ClonePath $ClonePath -ClonePathWasExplicit $ClonePathWasExplicit)
+
+    foreach ($candidatePath in $candidatePaths) {
+        if (-not (Test-Path -LiteralPath $candidatePath -PathType Container)) {
+            continue
+        }
+
+        if (-not (Test-WordifySourceRoot -Root $candidatePath)) {
+            Write-Host "Skipping source cleanup because this folder is not a Wordify source folder: $candidatePath"
+            continue
+        }
+
+        $safeTargetPath = Assert-SafeWordifySourceRemovalTarget -TargetPath $candidatePath
+        if ($PSCmdlet.ShouldProcess($safeTargetPath, "Remove Wordify source folder")) {
+            Remove-Item -LiteralPath $safeTargetPath -Recurse -Force
+            [void]$removed.Add($safeTargetPath)
+        }
+    }
+
+    return $removed
 }
 
 function Resolve-WordifyModuleFiles {
@@ -631,11 +903,36 @@ function Save-WordTemplate {
     }
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$installerRoot = Get-InstallerPackageRoot -ScriptRoot $PSScriptRoot
+$repoRoot = Get-BundledWordifySourceRoot -ScriptRoot $PSScriptRoot
+if ([string]::IsNullOrWhiteSpace($repoRoot)) {
+    $repoRoot = $installerRoot
+}
+
 Assert-WordAutomationIsAvailable
 
-if ((-not $Uninstall) -and (-not $SkipSourceBootstrap) -and [string]::IsNullOrWhiteSpace($VbaPath)) {
-    $repoRoot = Initialize-WordifyInstallSource -RepositoryUrl $RepositoryUrl -ClonePath $ClonePath
+if ((-not $Uninstall) -and [string]::IsNullOrWhiteSpace($VbaPath)) {
+    if (Test-WordifySourceRoot -Root $repoRoot) {
+        Write-Host "Using bundled Wordify source: $repoRoot"
+    }
+    elseif (-not $SkipSourceBootstrap) {
+        Write-Host "No bundled Wordify source found. Starting from-scratch bootstrap."
+        $bootstrapClonePath = Resolve-BootstrapClonePath `
+            -PreferredPath $ClonePath `
+            -InstallerRoot $installerRoot `
+            -ClonePathWasExplicit $PSBoundParameters.ContainsKey("ClonePath")
+
+        Write-Host "Wordify source checkout path: $bootstrapClonePath"
+        $repoRoot = Initialize-WordifyInstallSource -RepositoryUrl $RepositoryUrl -ClonePath $bootstrapClonePath
+    }
+    else {
+        throw @"
+-SkipSourceBootstrap was requested, but no bundled Wordify source was found next to this installer.
+
+Expected to find a 'vba' folder and 'manifest.xml' beside the installer package.
+Run the installer without -SkipSourceBootstrap to clone the source code, or pass -VbaPath to an existing Wordify vba folder.
+"@
+    }
 }
 
 Assert-NormalTemplateIsAvailable
@@ -670,6 +967,11 @@ try {
 
     if ($Uninstall) {
         Save-WordTemplate -Template $template
+        $removedSourceFolders = @(Remove-WordifySourceFolders `
+            -ClonePath $ClonePath `
+            -ClonePathWasExplicit $PSBoundParameters.ContainsKey("ClonePath"))
+
+        Write-Host "Removed Wordify source folders: $($removedSourceFolders.Count)"
         Write-Host "Wordify has been uninstalled from Normal.dotm."
         exit 0
     }
